@@ -150,12 +150,12 @@ st.title("SideEffectNet: Drug Safety Analytics")
 st.markdown("Explore drug-side effect relationships, risk scores, and polypharmacy risks.")
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🔍 Drug Lookup", 
-    "🔄 Safer Alternatives", 
-    "📊 Risk Explorer", 
-    "⚠️ Polypharmacy", 
-    "📌 Critical Nodes",
-    "🧪 Risk Hypotheses"
+    "Drug Lookup", 
+    "Safer Alternatives", 
+    "Risk Explorer", 
+    "Polypharmacy", 
+    "Critical Nodes",
+    "Risk Hypotheses"
 ])
 
 ############################################
@@ -479,7 +479,7 @@ with tab4:
             """, unsafe_allow_html=True)
             
             if len(selected_drugs) > 2:
-                st.warning("⚠️ Combining more than 2 drugs increases risk exponentially")
+                st.warning("Combining more than 2 drugs increases risk exponentially")
         
         # Visualizations
         tab1, tab2 = st.tabs(["Side Effect Overlap", "Risk Comparison"])
@@ -635,7 +635,7 @@ with tab5:
 #  TAB 6: Risk Hypotheses (Professional Analysis)
 ############################################
 with tab6:
-    st.header("🧪 AI-Powered Risk Hypotheses")
+    st.header("AI-Powered Risk Hypotheses")
     st.markdown("Generate scientifically validated hypotheses about drug combination risks.")
 
     # Add color legend
@@ -766,7 +766,7 @@ with tab6:
                         )
 
                         # Display formatted results
-                        st.markdown("### 🔬 Generated Hypotheses")
+                        st.markdown("### Generated Hypotheses")
                         formatted_response = response.text.replace(
                             "Okay, let's analyze the drug combination of carnitine and anidulafungin and generate clinically-relevant hypotheses based on the provided information.",
                             ""
