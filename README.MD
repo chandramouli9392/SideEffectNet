@@ -102,9 +102,9 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Contact
 For questions or support, please contact:
-- **Ganesh Mysore**
-- GitHub: [ganeshmysoreDT](https://github.com/ganeshmysoreDT)
-- Email: ganeshhmysore@gmail.com
+- **Chandramouli boppana**
+- GitHub:https://github.com/chandramouli9392
+- Email:chandramouliboppana7@gmail.com
 
 ## Acknowledgments
 - FDA Adverse Event Reporting System for data sources.
