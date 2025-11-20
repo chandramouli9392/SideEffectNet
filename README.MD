@@ -42,20 +42,6 @@ sideeffectnet/
 └── sideeffectnet_graph.html
 ```
 
-## Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/ganeshmysoreDT/SideEffectNet.git
-   ```
-2. Navigate to the project directory:
-   ```bash
-   cd SideEffectNet
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
 ## Usage
 ### Running the CLI
 1. Run the main script:
