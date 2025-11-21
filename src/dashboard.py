@@ -1,4 +1,4 @@
-# dashboard.py
+# dashboard.py (final fixed version)
 import streamlit as st
 st.set_page_config(
     page_title="SideEffectNet Dashboard",
@@ -26,97 +26,9 @@ import os
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# FINAL FIX — UI PATCH
-theme_choice = st.sidebar.radio("Theme", ["Auto", "Light", "Dark"], index=0)
-reduce_motion = st.sidebar.checkbox("Reduce animation", value=False)
-theme_attr = ("reduced-motion" if reduce_motion else "light" if theme_choice == "Light" else "dark" if theme_choice == "Dark" else "auto")
-
-st.markdown(
-    f"""
-<style>
-html, body, .stApp, .block-container, .main, .stApp > div {{
-    background: transparent !important;
-}}
-
-.stApp {{
-    background: linear-gradient(
-        120deg,
-        #0f172a,
-        #0ea5a4,
-        #7c3aed,
-        #ef476f
-    ) !important;
-    background-size: 400% 400% !important;
-    animation: gradientShift 14s ease infinite !important;
-}}
-
-@keyframes gradientShift {{
-    0% {{ background-position: 0% 50%; }}
-    50% {{ background-position: 100% 50%; }}
-    100% {{ background-position: 0% 50%; }}
-}}
-
-html[data-theme="light"] .stApp {{
-    color: #0b1220 !important;
-}}
-
-html[data-theme="dark"] .stApp {{
-    color: #e6eef8 !important;
-}}
-
-html[data-theme="auto"] .stApp {{
-    color: inherit !important;
-}}
-
-.css-1d391kg, .stSidebar {{
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    background: rgba(255,255,255,0.06) !important;
-    border-right: 1px solid rgba(255,255,255,0.12) !important;
-}}
-
-.stMarkdown, .stDataFrame, .stAlert, .stMetric, .stSelectbox, .stTextInput {{
-    background: rgba(255,255,255,0.12) !important;
-    backdrop-filter: blur(12px) !important;
-    border-radius: 14px !important;
-    padding: 10px !important;
-}}
-
-html[data-theme="dark"] .stMarkdown,
-html[data-theme="dark"] .stAlert,
-html[data-theme="dark"] .stSelectbox {{
-    background: rgba(0,0,0,0.45) !important;
-}}
-
-.stTabs [data-baseweb="tab"] {{
-    background: rgba(255,255,255,0.14) !important;
-    backdrop-filter: blur(12px) !important;
-    border-radius: 10px !important;
-}}
-
-.stTabs [data-baseweb="tab-list"] {{
-    gap: 8px !important;
-}}
-
-@media (max-width: 600px) {{
-    .block-container {{
-        padding-left: 0.6rem !important;
-        padding-right: 0.6rem !important;
-    }}
-    .stSidebar {{
-        width: 85% !important;
-    }}
-}}
-
-</style>
-
-<script>
-document.documentElement.setAttribute('data-theme', '{theme_attr}');
-document.body.setAttribute('data-theme', '{theme_attr}');
-</script>
-""",
-    unsafe_allow_html=True
-)
-
+############################
+# ---- DATA LOADING ----   #
+############################
 DATA_DIR = Path("data/processed")
 EDGE_CSV = DATA_DIR / "side_effects_clean.csv"
 RISK_CSV = DATA_DIR / "drug_risk_scores.csv"
@@ -147,60 +59,192 @@ def build_graph(edges_df: pd.DataFrame) -> nx.DiGraph:
 def compute_centrality(_G: nx.DiGraph):
     return nx.betweenness_centrality(_G, k=min(100, len(_G.nodes)))
 
+# Load data and build small graph for interactive UI
 edges_df, risk_df = load_data()
-G = build_graph(edges_df.head(500))
+G = build_graph(edges_df.head(500))  # keep for responsiveness
 
+# Precompute lookups
 risk_map = risk_df.set_index("drug_name")["risk_score"].to_dict()
 side_effect_lookup = { drug: list(group["side_effect"]) for drug, group in edges_df.groupby("drug_name") }
 
+############################
+# ---- UI: Theme Controls ----
+############################
+# We place theme controls early so user can pick, but we will inject the actual CSS/JS after the first Streamlit render
+with st.sidebar:
+    st.markdown("## UI Settings")
+    theme_choice = st.radio("Theme", options=["Auto", "Light", "Dark"], index=0, help="Auto follows your OS/browser preference")
+    reduce_motion = st.checkbox("Reduce animation (accessibility)", value=False, help="Reduce motion for comfort or accessibility")
+
+# Map theme value (string used in injected JS)
+if reduce_motion:
+    theme_attr = "reduced-motion"
+else:
+    theme_attr = theme_choice.lower() if theme_choice != "Auto" else "auto"
+
+############################
+# ---- STREAMLIT UI ----   #
+############################
+
+# Keep a minimal original CSS for consistent components, then inject the heavy override *after* the first UI render.
 st.markdown("""
 <style>
-    .stMetric {
-        border: 1px solid rgba(225,228,232,0.6);
-        border-radius: 0.5rem;
-        padding: 1rem;
-        background-color: transparent;
-    }
-    .stMetric label {
-        font-size: 1rem !important;
-        color: #57606a !important;
-    }
-    .stMetric div {
-        font-size: 1.5rem !important;
-        font-weight: bold !important;
-    }
-    .css-1aumxhk {
-        background-color: rgba(255,255,255,0.03);
-        border-radius: 0.5rem;
-        padding: 1rem;
-    }
-    .css-1v0mbdj {
-        border-radius: 0.5rem;
-    }
-    .sidebar .sidebar-content {
-        background-color: transparent;
-    }
-    .st-b7 {
-        color: #24292f;
-    }
-    .st-b8 {
-        color: #57606a;
-    }
-    .stAlert {
-        border-radius: 0.5rem;
-    }
-    .ag-body.ag-layout-normal {
-        width: 100% !important;
-        height: 100vh !important;
-        margin: 0;
-        padding: 0;
-    }
+/* small local tweaks preserved */
+.stMetric {
+    border: 1px solid rgba(225,228,232,0.6);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background-color: transparent;
+}
+.stMetric label {
+    font-size: 1rem !important;
+    color: #57606a !important;
+}
+.stMetric div {
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
+# --- Main header (first visible element) ---
+st.title("SideEffectNet: Drug Safety Analytics")
+st.markdown("Explore drug-side effect relationships, risk scores, and polypharmacy risks.")
+
+# === IMPORTANT: Inject final CSS/JS via components.html AFTER the first render.
+# components.html is not stripped by Streamlit Cloud and executes in-page, so it reliably overrides Streamlit's own theme.
+final_injection = f"""
+<style>
+/* FORCE remove Streamlit background layers so gradient is visible */
+html, body, .stApp, .block-container, .main, .stApp > div {{
+    background: transparent !important;
+    background-color: transparent !important;
+}}
+
+/* Animated AI-themed gradient (Day/Night variants handled by data-theme attr) */
+.app-gradient {{
+    position: fixed;
+    inset: 0;
+    z-index: -9999;
+    background: linear-gradient(120deg, #0f172a 0%, #0ea5a4 30%, #7c3aed 65%, #ef476f 100%);
+    background-size: 400% 400%;
+    filter: saturate(1.05) contrast(1.02);
+    animation: gradientShift 14s ease infinite;
+    opacity: 0.95;
+}}
+
+/* Keyframes */
+@keyframes gradientShift {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
+
+/* Reduced motion */
+html[data-theme="reduced-motion"] .app-gradient {{
+    animation: none !important;
+}}
+
+/* Light vs Dark text color hints */
+html[data-theme="light"] .stApp, body[data-theme="light"] .stApp {{
+    color: #0b1220 !important;
+}}
+html[data-theme="dark"] .stApp, body[data-theme="dark"] .stApp {{
+    color: #e6eef8 !important;
+}}
+
+/* Transparent glassy sidebar */
+[data-testid="stSidebar"] > div[role="complementary"] {{
+    background: rgba(255,255,255,0.06) !important;
+    backdrop-filter: blur(12px) saturate(140%) !important;
+    border-right: 1px solid rgba(255,255,255,0.08) !important;
+}}
+
+/* Glass cards for main content */
+.stMarkdown, .stFrame, .stDataFrameContainer, .stDataFrame, .stAlert, .stMetric, .stButton {{
+    background: rgba(255,255,255,0.12) !important;
+    backdrop-filter: blur(8px) !important;
+    border-radius: 12px !important;
+    padding: 0.6rem !important;
+    box-shadow: 0 6px 20px rgba(2,6,23,0.15) !important;
+}}
+
+/* Dark theme card tweak */
+html[data-theme="dark"] .stMarkdown, html[data-theme="dark"] .stAlert {{
+    background: rgba(0,0,0,0.45) !important;
+}}
+
+/* Make tabs and selectors match glass */
+.stTabs [data-baseweb="tab"] {{
+    background: rgba(255,255,255,0.10) !important;
+    backdrop-filter: blur(8px) !important;
+    border-radius: 8px !important;
+}}
+.stTabs [data-baseweb="tab-list"] {{
+    gap: 8px !important;
+}}
+
+/* Ensure pyvis iframe readable */
+iframe, .stHtml {{
+    background: transparent !important;
+}}
+
+/* Responsive */
+@media (max-width: 600px) {{
+    .block-container {{
+        padding-left: 0.6rem !important;
+        padding-right: 0.6rem !important;
+    }}
+    [data-testid="stSidebar"] > div[role="complementary"] {{
+        width: 85% !important;
+    }}
+}}
+</style>
+
+<!-- Create the gradient container and set theme attr on html/body -->
+<div id="sideeffectnet-gradient" class="app-gradient"></div>
+
+<script>
+(function() {{
+    try {{
+        // Set data-theme on html/body for CSS selection
+        document.documentElement.setAttribute('data-theme', '{theme_attr}');
+        document.body.setAttribute('data-theme', '{theme_attr}');
+        // If 'auto' then use prefers-color-scheme to choose colors
+        if ('{theme_attr}' === 'auto') {{
+            // If user prefers dark, set dark, else light
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const resolved = prefersDark ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', resolved);
+            document.body.setAttribute('data-theme', resolved);
+        }}
+        // Make sure Streamlit's root container is transparent (covers any stubborn overrides)
+        const stApp = document.querySelector('.stApp');
+        if (stApp) {{
+            stApp.style.background = 'transparent';
+            stApp.style.backgroundColor = 'transparent';
+        }}
+        // Also remove any inline background color on Streamlit block container
+        const block = document.querySelector('.block-container');
+        if (block) {{
+            block.style.background = 'transparent';
+            block.style.backgroundColor = 'transparent';
+        }}
+    }} catch(e) {{
+        console.warn('Theme injection error:', e);
+    }}
+}})();
+</script>
+"""
+
+# Inject using components.html with a small height so it runs immediately (and isn't stripped)
+components.html(final_injection, height=1, scrolling=False)
+
+# --- Sidebar (logo, filters, about) ---
 with st.sidebar:
     st.image("media/sideeffectnetlogo.png", width=150)
     st.markdown("### Filters")
+    # ensure risk_df exists (it does because load_data() was called earlier)
     min_risk, max_risk = risk_df["risk_score"].min(), risk_df["risk_score"].max()
     risk_filter = st.slider(
         "Filter by risk score",
@@ -219,9 +263,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("Data source: FDA Adverse Event Reporting System")
 
-st.title("SideEffectNet: Drug Safety Analytics")
-st.markdown("Explore drug-side effect relationships, risk scores, and polypharmacy risks.")
-
+# Main tabs and logic (unchanged behavior)
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Drug Lookup",
     "Safer Alternatives",
@@ -231,6 +273,9 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Risk Hypotheses"
 ])
 
+############################################
+#  TAB 1: Drug Search + Explanation + Subgraph
+############################################
 with tab1:
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -243,22 +288,22 @@ with tab1:
             else:
                 score = risk_map[drug]
                 risk_color = "red" if score > 0.7 else "orange" if score > 0.4 else "green"
-                st.markdown(f"""
-                <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_color}">
-                    <h3 style="margin-top: 0; color: #24292f;">{drug}</h3>
-                    <div style="font-size: 2rem; font-weight: bold; color: {risk_color};">{score:.3f}</div>
-                    <div style="color: #57606a;">Risk Score (0-1 scale)</div>
+                st.markdown(f\"\"\"
+                <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_color}\">
+                    <h3 style=\"margin-top: 0; color: #24292f;\">{drug}</h3>
+                    <div style=\"font-size: 2rem; font-weight: bold; color: {risk_color};\">{score:.3f}</div>
+                    <div style=\"color: #57606a;\">Risk Score (0-1 scale)</div>
                 </div>
-                """, unsafe_allow_html=True)
+                \"\"\", unsafe_allow_html=True)
                 se_list = list(dict.fromkeys(side_effect_lookup.get(drug, [])))
-                st.markdown(f"#### Reported Side Effects ({len(se_list)} total)")
+                st.markdown(f\"#### Reported Side Effects ({len(se_list)} total)\")
                 if se_list:
                     for i, se in enumerate(se_list[:10], start=1):
-                        st.markdown(f"- {se}")
+                        st.markdown(f\"- {se}\")
                     if len(se_list) > 10:
                         with st.expander("Show all side effects"):
                             for i, se in enumerate(se_list[10:], start=11):
-                                st.markdown(f"- {se}")
+                                st.markdown(f\"- {se}\")
                 else:
                     st.info("No side effects recorded for this drug.")
 
@@ -267,7 +312,7 @@ with tab1:
             se_list = list(dict.fromkeys(side_effect_lookup.get(drug, [])))
             if se_list:
                 sg = nx.Graph()
-                sg.add_node(drug, color="#636EFA", size=30, title=f"Drug: {drug}\nRisk: {risk_map.get(drug, 'N/A')}")
+                sg.add_node(drug, color="#636EFA", size=30, title=f"Drug: {drug}\\nRisk: {risk_map.get(drug, 'N/A')}")
                 for se in se_list[:20]:
                     sg.add_node(se, color="#EF553B", size=20, title=f"Side Effect: {se}")
                     if G.has_edge(drug, se):
@@ -277,7 +322,7 @@ with tab1:
                         sg.add_edge(drug, se, value=1, title="Frequency: N/A")
                 pv = Network(height="600px", width="100%", bgcolor="white", font_color="black", directed=False, notebook=False)
                 pv.from_nx(sg)
-                pv.set_options("""
+                pv.set_options(\"\"\"
                 {
                   "physics": {
                     "barnesHut": {
@@ -321,13 +366,16 @@ with tab1:
                     "multiselect": true
                   }
                 }
-                """)
+                \"\"\")
                 with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmpfile:
                     pv.save_graph(tmpfile.name)
                     components.html(open(tmpfile.name, 'r').read(), height=620, scrolling=False)
             else:
                 st.warning("No side effects to visualize for this drug.")
 
+############################################
+#  TAB 2: Suggest Safer Alternatives
+############################################
 with tab2:
     st.header("Find Safer Alternatives")
     st.markdown("Discover drugs with similar effects but lower risk profiles.")
@@ -358,6 +406,9 @@ with tab2:
     else:
         st.info("Please select a drug in the 'Drug Lookup' tab first.")
 
+############################################
+#  TAB 3: Risk Score Explorer
+############################################
 with tab3:
     st.header("Drug Risk Explorer")
     st.markdown("Analyze and compare drug risk scores across the dataset.")
@@ -365,20 +416,20 @@ with tab3:
     col1, col2 = st.columns([1, 3])
     with col1:
         drugs_in_range_color = "green" if len(filtered) > 50 else "orange" if len(filtered) > 20 else "red"
-        st.markdown(f"""
-        <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {drugs_in_range_color}; margin-bottom: 1rem;">
-            <div style="font-size: 1rem; color: #57606a;">Drugs in Range</div>
-            <div style="font-size: 1.5rem; font-weight: bold; color: {drugs_in_range_color};">{len(filtered)}</div>
+        st.markdown(f\"\"\"
+        <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {drugs_in_range_color}; margin-bottom: 1rem;\">
+            <div style=\"font-size: 1rem; color: #57606a;\">Drugs in Range</div>
+            <div style=\"font-size: 1.5rem; font-weight: bold; color: {drugs_in_range_color};\">{len(filtered)}</div>
         </div>
-        """, unsafe_allow_html=True)
+        \"\"\", unsafe_allow_html=True)
         avg_risk = filtered["risk_score"].mean()
         avg_risk_color = "green" if avg_risk <= 0.4 else "orange" if avg_risk <= 0.7 else "red"
-        st.markdown(f"""
-        <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {avg_risk_color}; margin-bottom: 1rem;">
-            <div style="font-size: 1rem; color: #57606a;">Average Risk</div>
-            <div style="font-size: 1.5rem; font-weight: bold; color: {avg_risk_color};">{avg_risk:.3f}</div>
+        st.markdown(f\"\"\"
+        <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {avg_risk_color}; margin-bottom: 1rem;\">
+            <div style=\"font-size: 1rem; color: #57606a;\">Average Risk</div>
+            <div style=\"font-size: 1.5rem; font-weight: bold; color: {avg_risk_color};\">{avg_risk:.3f}</div>
         </div>
-        """, unsafe_allow_html=True)
+        \"\"\", unsafe_allow_html=True)
         st.markdown("**Highest Risk in Range**")
         for _, row in filtered.nlargest(5, "risk_score").iterrows():
             st.markdown(f"- {row['drug_name']} ({row['risk_score']:.3f})")
@@ -389,23 +440,13 @@ with tab3:
     st.markdown("### Drug Risk Data")
     st.dataframe(filtered, use_container_width=True)
 
+############################################
+#  TAB 4: Polypharmacy Risk Detection
+############################################
 with tab4:
     st.header("Polypharmacy Risk Analyzer")
     st.markdown("Identify potential risks when combining multiple medications.")
-    st.markdown("""
-    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-        <div style="width: 20px; height: 20px; background-color: green; margin-right: 10px; border-radius: 50%;"></div>
-        <span style="font-size: 1rem; color: #57606a;">Safe</span>
-    </div>
-    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-        <div style="width: 20px; height: 20px; background-color: orange; margin-right: 10px; border-radius: 50%;"></div>
-        <span style="font-size: 1rem; color: #57606a;">Moderate Risk</span>
-    </div>
-    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-        <div style="width: 20px; height: 20px; background-color: red; margin-right: 10px; border-radius: 50%;"></div>
-        <span style="font-size: 1rem; color: #57606a;">High Risk</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(\"\"\"\n    <div style=\"display: flex; align-items: center; margin-bottom: 1rem;\">\n        <div style=\"width: 20px; height: 20px; background-color: green; margin-right: 10px; border-radius: 50%;\"></div>\n        <span style=\"font-size: 1rem; color: #57606a;\">Safe</span>\n    </div>\n    <div style=\"display: flex; align-items: center; margin-bottom: 1rem;\">\n        <div style=\"width: 20px; height: 20px; background-color: orange; margin-right: 10px; border-radius: 50%;\"></div>\n        <span style=\"font-size: 1rem; color: #57606a;\">Moderate Risk</span>\n    </div>\n    <div style=\"display: flex; align-items: center; margin-bottom: 1rem;\">\n        <div style=\"width: 20px; height: 20px; background-color: red; margin-right: 10px; border-radius: 50%;\"></div>\n        <span style=\"font-size: 1rem; color: #57606a;\">High Risk</span>\n    </div>\n    \"\"\", unsafe_allow_html=True)
     drug_options = sorted(risk_df["drug_name"].unique())
     selected_drugs = st.multiselect("Select 2-5 drugs to analyze combinations", drug_options, max_selections=5, help="Select multiple drugs to check for overlapping side effects")
     if len(selected_drugs) >= 2:
@@ -422,40 +463,15 @@ with tab4:
                 combined_score += risk_map.get(d, 0)
             avg_score = combined_score / len(selected_drugs)
             max_score = max(risk_map.get(d, 0) for d in selected_drugs)
-            st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid blue; margin-bottom: 1rem;">
-                <div style="font-size: 1rem; color: #57606a;">Average Risk</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: blue;">{avg_score:.3f}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid red; margin-bottom: 1rem;">
-                <div style="font-size: 1rem; color: #57606a;">Highest Individual Risk</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: red;">{max_score:.3f}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f\"\"\"\n            <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid blue; margin-bottom: 1rem;\">\n                <div style=\"font-size: 1rem; color: #57606a;\">Average Risk</div>\n                <div style=\"font-size: 1.5rem; font-weight: bold; color: blue;\">{avg_score:.3f}</div>\n            </div>\n            \"\"\", unsafe_allow_html=True)
+            st.markdown(f\"\"\"\n            <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid red; margin-bottom: 1rem;\">\n                <div style=\"font-size: 1rem; color: #57606a;\">Highest Individual Risk</div>\n                <div style=\"font-size: 1.5rem; font-weight: bold; color: red;\">{max_score:.3f}</div>\n            </div>\n            \"\"\", unsafe_allow_html=True)
         with col2:
-            st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid green; margin-bottom: 1rem;">
-                <div style="font-size: 1rem; color: #57606a;">Total Unique Side Effects</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: green;">{len(combined_effects)}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid orange; margin-bottom: 1rem;">
-                <div style="font-size: 1rem; color: #57606a;">Overlapping Side Effects</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: orange;">{len(overlap_effects) if overlap_effects else 0}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f\"\"\"\n            <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid green; margin-bottom: 1rem;\">\n                <div style=\"font-size: 1rem; color: #57606a;\">Total Unique Side Effects</div>\n                <div style=\"font-size: 1.5rem; font-weight: bold; color: green;\">{len(combined_effects)}</div>\n            </div>\n            \"\"\", unsafe_allow_html=True)
+            st.markdown(f\"\"\"\n            <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid orange; margin-bottom: 1rem;\">\n                <div style=\"font-size: 1rem; color: #57606a;\">Overlapping Side Effects</div>\n                <div style=\"font-size: 1.5rem; font-weight: bold; color: orange;\">{len(overlap_effects) if overlap_effects else 0}</div>\n            </div>\n            \"\"\", unsafe_allow_html=True)
         with col3:
             risk_level = "High" if avg_score > 0.7 else "Medium" if avg_score > 0.4 else "Low"
             color = "red" if risk_level == "High" else "orange" if risk_level == "Medium" else "green"
-            st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {color}; margin-bottom: 1rem;">
-                <div style="font-size: 1rem; color: #57606a;">Combined Risk Level</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: {color};">{risk_level}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f\"\"\"\n            <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {color}; margin-bottom: 1rem;\">\n                <div style=\"font-size: 1rem; color: #57606a;\">Combined Risk Level</div>\n                <div style=\"font-size: 1.5rem; font-weight: bold; color: {color};\">{risk_level}</div>\n            </div>\n            \"\"\", unsafe_allow_html=True)
             if len(selected_drugs) > 2:
                 st.warning("Combining more than 2 drugs increases risk exponentially")
         tab1, tab2 = st.tabs(["Side Effect Overlap", "Risk Comparison"])
@@ -477,6 +493,9 @@ with tab4:
     else:
         st.info("Please select at least 2 drugs to analyze combinations")
 
+############################################
+#  TAB 5 & 6 (unchanged logic)...
+############################################
 with tab5:
     st.header("Network Critical Nodes Analysis")
     st.markdown("Identify the most influential drugs and side effects in the network.")
@@ -495,30 +514,21 @@ with tab5:
         fig.update_layout(yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("**Clinical Implications**")
-        st.markdown("""
-        - High centrality drugs may have broad side effect profiles
-        - Potential for more drug-drug interactions
-        - May require closer monitoring in clinical practice
-        """)
+        st.markdown("- High centrality drugs may have broad side effect profiles\n- Potential for more drug-drug interactions\n- May require closer monitoring in clinical practice")
     with col2:
         st.markdown("### Most Central Side Effects")
-        st.markdown("Side effects associated with many different drugs")
         fig = px.bar(se_top, x="Centrality", y="Node", orientation='h', color="Centrality", color_continuous_scale='Plasma')
         fig.update_layout(yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("**Clinical Implications**")
-        st.markdown("""
-        - Common side effects across drug classes
-        - May represent general physiological responses
-        - Potential targets for preventative therapies
-        """)
+        st.markdown("- Common side effects across drug classes\n- May represent general physiological responses\n- Potential targets for preventative therapies")
     if st.checkbox("Show Critical Nodes Network", key="critical_nodes_network_checkbox"):
         top_nodes = list(drug_top["Node"]) + list(se_top["Node"])
         subgraph = G.subgraph(top_nodes)
         pv = Network(height="700px", width="100%", bgcolor="white", font_color="black", directed=False, notebook=False)
         for node in subgraph.nodes():
             node_type = subgraph.nodes[node]["type"]
-            pv.add_node(node, color="#636EFA" if node_type == "drug" else "#EF553B", size=30 if node_type == "drug" else 20, title=f"{node_type.capitalize()}: {node}\nCentrality: {centrality[node]:.4f}", shape="dot")
+            pv.add_node(node, color="#636EFA" if node_type == "drug" else "#EF553B", size=30 if node_type == "drug" else 20, title=f"{node_type.capitalize()}: {node}\\nCentrality: {centrality[node]:.4f}", shape="dot")
         for edge in subgraph.edges():
             pv.add_edge(edge[0], edge[1], color="#A3A3A3", width=2, title=f"Edge between {edge[0]} and {edge[1]}")
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmpfile:
@@ -528,20 +538,7 @@ with tab5:
 with tab6:
     st.header("AI-Powered Risk Hypotheses")
     st.markdown("Generate scientifically validated hypotheses about drug combination risks.")
-    st.markdown("""
-    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-        <div style="width: 20px; height: 20px; background-color: green; margin-right: 10px; border-radius: 50%;"></div>
-        <span style="font-size: 1rem; color: #57606a;">Safe</span>
-    </div>
-    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-        <div style="width: 20px; height: 20px; background-color: orange; margin-right: 10px; border-radius: 50%;"></div>
-        <span style="font-size: 1rem; color: #57606a;">Moderate Risk</span>
-    </div>
-    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-        <div style="width: 20px; height: 20px; background-color: red; margin-right: 10px; border-radius: 50%;"></div>
-        <span style="font-size: 1rem; color: #57606a;">High Risk</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(\"\"\"\n<div style=\"display: flex; align-items: center; margin-bottom: 1rem;\">\n    <div style=\"width: 20px; height: 20px; background-color: green; margin-right: 10px; border-radius: 50%;\"></div>\n    <span style=\"font-size: 1rem; color: #57606a;\">Safe</span>\n</div>\n<div style=\"display: flex; align-items: center; margin-bottom: 1rem;\">\n    <div style=\"width: 20px; height: 20px; background-color: orange; margin-right: 10px; border-radius: 50%;\"></div>\n    <span style=\"font-size: 1rem; color: #57606a;\">Moderate Risk</span>\n</div>\n<div style=\"display: flex; align-items: center; margin-bottom: 1rem;\">\n    <div style=\"width: 20px; height: 20px; background-color: red; margin-right: 10px; border-radius: 50%;\"></div>\n    <span style=\"font-size: 1rem; color: #57606a;\">High Risk</span>\n</div>\n\"\"\", unsafe_allow_html=True)
     if 'active_tab' not in st.session_state:
         st.session_state['active_tab'] = 'Risk Hypotheses'
     if st.session_state['active_tab'] == 'Risk Hypotheses':
@@ -563,39 +560,17 @@ with tab6:
                 metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
                 with metrics_col1:
                     risk_a_color = "red" if risk_a > 0.7 else "orange" if risk_a > 0.4 else "green"
-                    st.markdown(f"""
-                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_a_color}; margin-bottom: 1rem;">
-                        <div style="font-size: 1rem; color: #57606a;">{drug_a} Risk Score</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: {risk_a_color};">{risk_a:.3f}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f\"\"\"\n                    <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_a_color}; margin-bottom: 1rem;\">\n                        <div style=\"font-size: 1rem; color: #57606a;\">{drug_a} Risk Score</div>\n                        <div style=\"font-size: 1.5rem; font-weight: bold; color: {risk_a_color};\">{risk_a:.3f}</div>\n                    </div>\n                    \"\"\", unsafe_allow_html=True)
                 with metrics_col2:
                     risk_b_color = "red" if risk_b > 0.7 else "orange" if risk_b > 0.4 else "green"
-                    st.markdown(f"""
-                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_b_color}; margin-bottom: 1rem;">
-                        <div style="font-size: 1rem; color: #57606a;">{drug_b} Risk Score</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: {risk_b_color};">{risk_b:.3f}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f\"\"\"\n                    <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_b_color}; margin-bottom: 1rem;\">\n                        <div style=\"font-size: 1rem; color: #57606a;\">{drug_b} Risk Score</div>\n                        <div style=\"font-size: 1.5rem; font-weight: bold; color: {risk_b_color};\">{risk_b:.3f}</div>\n                    </div>\n                    \"\"\", unsafe_allow_html=True)
                 with metrics_col3:
                     overlap_color = "red" if len(overlapping) > 10 else "orange" if len(overlapping) > 5 else "green"
-                    st.markdown(f"""
-                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {overlap_color}; margin-bottom: 1rem;">
-                        <div style="font-size: 1rem; color: #57606a;">Shared Side Effects</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: {overlap_color};">{len(overlapping)}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f\"\"\"\n                    <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {overlap_color}; margin-bottom: 1rem;\">\n                        <div style=\"font-size: 1rem; color: #57606a;\">Shared Side Effects</div>\n                        <div style=\"font-size: 1.5rem; font-weight: bold; color: {overlap_color};\">{len(overlapping)}</div>\n                    </div>\n                    \"\"\", unsafe_allow_html=True)
                 st.subheader("3. AI-Generated Hypotheses")
                 if st.button("Generate Scientific Hypotheses", type="primary"):
                     with st.spinner("Analyzing pharmacological profiles..."):
-                        context = {
-                            "drug_a": drug_a,
-                            "drug_b": drug_b,
-                            "risk_a": risk_a,
-                            "risk_b": risk_b,
-                            "overlap_count": len(overlapping),
-                            "overlap_effects": list(overlapping)[:10]
-                        }
+                        context = {"drug_a": drug_a, "drug_b": drug_b, "risk_a": risk_a, "risk_b": risk_b, "overlap_count": len(overlapping), "overlap_effects": list(overlapping)[:10]}
                         prompt_template = """
                         As a senior pharmacologist, analyze this drug combination:
 
