@@ -288,7 +288,7 @@ with tab1:
             else:
                 score = risk_map[drug]
                 risk_color = "red" if score > 0.7 else "orange" if score > 0.4 else "green"
-                st.markdown(f\"\"\"
+                st.markdown(f"""
                 <div style=\"border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_color}\">
                     <h3 style=\"margin-top: 0; color: #24292f;\">{drug}</h3>
                     <div style=\"font-size: 2rem; font-weight: bold; color: {risk_color};\">{score:.3f}</div>
