@@ -571,10 +571,11 @@ with tab6:
                 if st.button("Generate Scientific Hypotheses", type="primary"):
                     with st.spinner("Analyzing pharmacological profiles..."):
                         context = {"drug_a": drug_a, "drug_b": drug_b, "risk_a": risk_a, "risk_b": risk_b, "overlap_count": len(overlapping), "overlap_effects": list(overlapping)[:10]}
-                        prompt_template = """
+                        prompt_template =f"""
                         As a senior pharmacologist, analyze this drug combination:
 
                         **Drugs**: {drug_a} (Risk: {risk_a:.2f}) + {drug_b} (Risk: {risk_b:.2f})
+                        """
                         **Shared Side Effects**: {overlap_count}
                         **Key Overlaps**: {overlap_effects}
 
