@@ -1,3 +1,4 @@
+# dashboard.py (enhanced with animated background + theme toggle)
 import streamlit as st
 st.set_page_config(
     page_title="SideEffectNet Dashboard", 
@@ -26,6 +27,166 @@ load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+############################
+# ---- THEME + ANIMATIONS ----
+############################
+# Sidebar theme controls (placed early so it's available for CSS injection)
+with st.sidebar:
+    st.markdown("## UI Settings")
+    theme_choice = st.radio("Theme", options=["Auto", "Light", "Dark"], index=0, help="Auto follows your OS/browser preference")
+    reduce_motion = st.checkbox("Reduce animation (accessibility)", value=False, help="Reduce motion for comfort or accessibility")
+
+# Build CSS and JS for animated gradient and theme toggling
+# Colors chosen to match an "AI dealing with drugs" theme: teal / purple / magenta gradients
+animated_css = f"""
+<style>
+/* Root variables for colors and text */
+:root {{
+  --bg-gradient-1: #0f172a;  /* deep navy */
+  --bg-gradient-2: #0ea5a4;  /* teal */
+  --bg-gradient-3: #7c3aed;  /* purple */
+  --bg-gradient-4: #ef476f;  /* magenta/pink */
+  --card-bg-light: rgba(255,255,255,0.9);
+  --card-bg-dark: rgba(10,10,12,0.65);
+  --text-light: #0b1220;
+  --text-dark: #e6eef8;
+}}
+
+/* Animated gradient background applied to the Streamlit app container */
+html[data-theme="light"] .stApp,
+body[data-theme="light"] .stApp {{
+  background: linear-gradient(270deg, var(--bg-gradient-2), var(--bg-gradient-3), var(--bg-gradient-4));
+  background-size: 400% 400%;
+  animation: gradientAnim 14s ease infinite;
+  color: var(--text-light);
+}}
+
+html[data-theme="dark"] .stApp,
+body[data-theme="dark"] .stApp {{
+  background: linear-gradient(270deg, var(--bg-gradient-1), var(--bg-gradient-2), var(--bg-gradient-3));
+  background-size: 400% 400%;
+  animation: gradientAnim 16s ease infinite;
+  color: var(--text-dark);
+}}
+
+/* Auto follows prefers-color-scheme */
+@media (prefers-color-scheme: dark) {{
+  html[data-theme="auto"] .stApp,
+  body[data-theme="auto"] .stApp {{
+    background: linear-gradient(270deg, var(--bg-gradient-1), var(--bg-gradient-2), var(--bg-gradient-3));
+    background-size: 400% 400%;
+    animation: gradientAnim 16s ease infinite;
+    color: var(--text-dark);
+  }}
+}}
+
+@media (prefers-color-scheme: light) {{
+  html[data-theme="auto"] .stApp,
+  body[data-theme="auto"] .stApp {{
+    background: linear-gradient(270deg, var(--bg-gradient-2), var(--bg-gradient-3), var(--bg-gradient-4));
+    background-size: 400% 400%;
+    animation: gradientAnim 14s ease infinite;
+    color: var(--text-light);
+  }}
+}}
+
+/* Reduce motion: remove animation when requested */
+html[data-theme="reduced-motion"] .stApp,
+body[data-theme="reduced-motion"] .stApp {{
+  animation: none !important;
+  background-size: cover !important;
+}}
+
+/* Animation keyframes */
+@keyframes gradientAnim {{
+  0% {{ background-position: 0% 50%; }}
+  50% {{ background-position: 100% 50%; }}
+  100% {{ background-position: 0% 50%; }}
+}}
+
+/* Tweak panels, cards and sidebar for readability over the animated background */
+.stApp .block-container {{
+  background: linear-gradient( rgba(255,255,255,0.0), rgba(255,255,255,0.0) ); /* transparent so gradient shows through */
+  padding-top: 1rem;
+  padding-bottom: 2rem;
+}}
+
+.stSidebar .css-1d391kg {{
+  backdrop-filter: blur(6px);
+}}
+
+/* Make primary cards slightly opaque to improve text contrast */
+.stMarkdown, .stFrame, .stDataFrameContainer, .stButton {{
+  background: var(--card-bg-light);
+  border-radius: 0.6rem;
+  padding: 0.45rem;
+}}
+
+html[data-theme="dark"] .stMarkdown,
+html[data-theme="dark"] .stFrame,
+html[data-theme="dark"] .stDataFrameContainer,
+html[data-theme="dark"] .stButton {{
+  background: var(--card-bg-dark);
+}}
+
+/* Keep your previous custom tweaks (copied from original) */
+.stMetric {{
+    border: 1px solid rgba(225,228,232,0.6);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background-color: transparent;
+}}
+.stMetric label {{
+    font-size: 1rem !important;
+}}
+.stMetric div {{
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+}}
+
+/* Ensure pyvis/html embeds have solid background for readability */
+iframe, .stHtml {{
+    background: transparent;
+}}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {{
+  .stApp .block-container {{
+    padding-left: 0.8rem;
+    padding-right: 0.8rem;
+  }}
+}}
+</style>
+"""
+
+# Script to set data-theme on documentElement (so CSS above can read it)
+# We set 'auto' for Auto, 'light' or 'dark' accordingly. If reduce_motion is True we set reduced-motion.
+if reduce_motion:
+    theme_attr = "reduced-motion"
+else:
+    theme_attr = theme_choice.lower() if theme_choice != "Auto" else "auto"
+
+theme_script = f"""
+<script>
+(function() {{
+    try {{
+        // Set theme attribute on html and body for CSS selection
+        document.documentElement.setAttribute('data-theme', '{theme_attr}');
+        document.body.setAttribute('data-theme', '{theme_attr}');
+        // If 'auto', also add both attributes so media queries can apply
+        if ('{theme_attr}' === 'auto') {{
+            document.documentElement.setAttribute('data-theme', 'auto');
+            document.body.setAttribute('data-theme', 'auto');
+        }}
+    }} catch(e) {{
+        console.warn("Theme script error:", e);
+    }}
+}})();
+</script>
+"""
+
+# Inject CSS + script into the page
+st.markdown(animated_css + theme_script, unsafe_allow_html=True)
 
 ############################
 # ---- DATA LOADING ----   #
@@ -76,14 +237,14 @@ side_effect_lookup = {
 # ---- STREAMLIT UI ----   #
 ############################
 
-# Custom CSS for better styling
+# (Retained your original custom CSS tweaks but kept transparent background so animated gradient shows)
 st.markdown("""
 <style>
     .stMetric {
-        border: 1px solid #e1e4e8;
+        border: 1px solid rgba(225,228,232,0.6);
         border-radius: 0.5rem;
         padding: 1rem;
-        background-color: #f6f8fa;
+        background-color: transparent;
     }
     .stMetric label {
         font-size: 1rem !important;
@@ -94,7 +255,7 @@ st.markdown("""
         font-weight: bold !important;
     }
     .css-1aumxhk {
-        background-color: #f0f2f6;
+        background-color: rgba(255,255,255,0.03);
         border-radius: 0.5rem;
         padding: 1rem;
     }
@@ -102,7 +263,7 @@ st.markdown("""
         border-radius: 0.5rem;
     }
     .sidebar .sidebar-content {
-        background-color: #f8f9fa;
+        background-color: transparent;
     }
     .st-b7 {
         color: #24292f;
@@ -122,7 +283,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar with filters and info
+# Sidebar content (logo + filters + about) - placed below the theme controls
 with st.sidebar:
     st.image("media/sideeffectnetlogo.png", width=150)  # Display the logo from the media folder
     st.markdown("### Filters")
@@ -184,7 +345,7 @@ with tab1:
                 # Risk score with color coding
                 risk_color = "red" if score > 0.7 else "orange" if score > 0.4 else "green"
                 st.markdown(f"""
-                <div style="border-radius: 0.5rem; padding: 1rem; background-color: #f8f9fa; border-left: 0.3rem solid {risk_color}">
+                <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_color}">
                     <h3 style="margin-top: 0; color: #24292f;">{drug}</h3>
                     <div style="font-size: 2rem; font-weight: bold; color: {risk_color};">{score:.3f}</div>
                     <div style="color: #57606a;">Risk Score (0-1 scale)</div>
@@ -344,7 +505,7 @@ with tab3:
         drugs_in_range_color = "green" if len(filtered) > 50 else "orange" if len(filtered) > 20 else "red"
         # Styled container for "Drugs in Range"
         st.markdown(f"""
-        <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid {drugs_in_range_color}; margin-bottom: 1rem;">
+        <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {drugs_in_range_color}; margin-bottom: 1rem;">
             <div style="font-size: 1rem; color: #57606a;">Drugs in Range</div>
             <div style="font-size: 1.5rem; font-weight: bold; color: {drugs_in_range_color};">{len(filtered)}</div>
         </div>
@@ -355,7 +516,7 @@ with tab3:
         avg_risk_color = "green" if avg_risk <= 0.4 else "orange" if avg_risk <= 0.7 else "red"
         # Styled container for "Average Risk"
         st.markdown(f"""
-        <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid {avg_risk_color}; margin-bottom: 1rem;">
+        <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {avg_risk_color}; margin-bottom: 1rem;">
             <div style="font-size: 1rem; color: #57606a;">Average Risk</div>
             <div style="font-size: 1.5rem; font-weight: bold; color: {avg_risk_color};">{avg_risk:.3f}</div>
         </div>
@@ -438,14 +599,14 @@ with tab4:
             max_score = max(risk_map.get(d, 0) for d in selected_drugs)
 
             st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid blue; margin-bottom: 1rem;">
+            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid blue; margin-bottom: 1rem;">
                 <div style="font-size: 1rem; color: #57606a;">Average Risk</div>
                 <div style="font-size: 1.5rem; font-weight: bold; color: blue;">{avg_score:.3f}</div>
             </div>
             """, unsafe_allow_html=True)
 
             st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid red; margin-bottom: 1rem;">
+            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid red; margin-bottom: 1rem;">
                 <div style="font-size: 1rem; color: #57606a;">Highest Individual Risk</div>
                 <div style="font-size: 1.5rem; font-weight: bold; color: red;">{max_score:.3f}</div>
             </div>
@@ -453,14 +614,14 @@ with tab4:
 
         with col2:
             st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid green; margin-bottom: 1rem;">
+            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid green; margin-bottom: 1rem;">
                 <div style="font-size: 1rem; color: #57606a;">Total Unique Side Effects</div>
                 <div style="font-size: 1.5rem; font-weight: bold; color: green;">{len(combined_effects)}</div>
             </div>
             """, unsafe_allow_html=True)
 
             st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid orange; margin-bottom: 1rem;">
+            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid orange; margin-bottom: 1rem;">
                 <div style="font-size: 1rem; color: #57606a;">Overlapping Side Effects</div>
                 <div style="font-size: 1.5rem; font-weight: bold; color: orange;">{len(overlap_effects) if overlap_effects else 0}</div>
             </div>
@@ -472,7 +633,7 @@ with tab4:
             color = "red" if risk_level == "High" else "orange" if risk_level == "Medium" else "green"
             
             st.markdown(f"""
-            <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid {color}; margin-bottom: 1rem;">
+            <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {color}; margin-bottom: 1rem;">
                 <div style="font-size: 1rem; color: #57606a;">Combined Risk Level</div>
                 <div style="font-size: 1.5rem; font-weight: bold; color: {color};">{risk_level}</div>
             </div>
@@ -697,7 +858,7 @@ with tab6:
                 with metrics_col1:
                     risk_a_color = "red" if risk_a > 0.7 else "orange" if risk_a > 0.4 else "green"
                     st.markdown(f"""
-                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid {risk_a_color}; margin-bottom: 1rem;">
+                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_a_color}; margin-bottom: 1rem;">
                         <div style="font-size: 1rem; color: #57606a;">{drug_a} Risk Score</div>
                         <div style="font-size: 1.5rem; font-weight: bold; color: {risk_a_color};">{risk_a:.3f}</div>
                     </div>
@@ -706,7 +867,7 @@ with tab6:
                 with metrics_col2:
                     risk_b_color = "red" if risk_b > 0.7 else "orange" if risk_b > 0.4 else "green"
                     st.markdown(f"""
-                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid {risk_b_color}; margin-bottom: 1rem;">
+                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {risk_b_color}; margin-bottom: 1rem;">
                         <div style="font-size: 1rem; color: #57606a;">{drug_b} Risk Score</div>
                         <div style="font-size: 1.5rem; font-weight: bold; color: {risk_b_color};">{risk_b:.3f}</div>
                     </div>
@@ -715,7 +876,7 @@ with tab6:
                 with metrics_col3:
                     overlap_color = "red" if len(overlapping) > 10 else "orange" if len(overlapping) > 5 else "green"
                     st.markdown(f"""
-                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: #ffffff; border-left: 0.3rem solid {overlap_color}; margin-bottom: 1rem;">
+                    <div style="border-radius: 0.5rem; padding: 1rem; background-color: rgba(255,255,255,0.85); border-left: 0.3rem solid {overlap_color}; margin-bottom: 1rem;">
                         <div style="font-size: 1rem; color: #57606a;">Shared Side Effects</div>
                         <div style="font-size: 1.5rem; font-weight: bold; color: {overlap_color};">{len(overlapping)}</div>
                     </div>
@@ -767,10 +928,7 @@ with tab6:
 
                         # Display formatted results
                         st.markdown("### Generated Hypotheses")
-                        formatted_response = response.text.replace(
-                            "Okay, let's analyze the drug combination of carnitine and anidulafungin and generate clinically-relevant hypotheses based on the provided information.",
-                            ""
-                        )
+                        formatted_response = response.text
                         st.markdown(formatted_response)
             else:
                 # Fix the logic for displaying the "Please select two drugs to analyze" message
