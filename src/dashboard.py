@@ -1,4 +1,60 @@
 # dashboard.py (FINAL — Full app with floating pills background)
+# Inject floating pill animation background
+st.markdown("""
+<style>
+/* Background container */
+#pill-bg-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    z-index: -9999;
+    pointer-events: none;
+}
+
+/* Single pill */
+.pill {
+    position: absolute;
+    width: 60px;
+    height: 24px;
+    border-radius: 20px;
+    background: linear-gradient(90deg, #ffffffcc, #e2e2ffcc);
+    box-shadow: 0 4px 12px #00000040;
+    animation: floatUp 10s linear infinite;
+}
+
+/* Animation */
+@keyframes floatUp {
+    0%   { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    50%  { transform: translateY(40vh) rotate(10deg); opacity: 1; }
+    100% { transform: translateY(-20vh) rotate(-10deg); opacity: 0; }
+}
+
+/* Responsive pill sizes */
+@media (max-width: 600px) {
+    .pill {
+        width: 40px;
+        height: 16px;
+    }
+}
+</style>
+
+<!-- 24 floating pills -->
+<div id="pill-bg-container">
+    <div class="pill" style="left:5%; animation-delay:0s;"></div>
+    <div class="pill" style="left:15%; animation-delay:2s;"></div>
+    <div class="pill" style="left:25%; animation-delay:4s;"></div>
+    <div class="pill" style="left:35%; animation-delay:1s;"></div>
+    <div class="pill" style="left:45%; animation-delay:3s;"></div>
+    <div class="pill" style="left:55%; animation-delay:5s;"></div>
+    <div class="pill" style="left:65%; animation-delay:6s;"></div>
+    <div class="pill" style="left:75%; animation-delay:7s;"></div>
+    <div class="pill" style="left:85%; animation-delay:8s;"></div>
+    <div class="pill" style="left:90
+
 import os
 from pathlib import Path
 import tempfile
