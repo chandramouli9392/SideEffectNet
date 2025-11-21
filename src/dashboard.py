@@ -1,4 +1,3 @@
-# dashboard.py (FINAL — Full app with floating pills background)
 # Inject floating pill animation background
 st.markdown("""
 <style>
@@ -53,8 +52,17 @@ st.markdown("""
     <div class="pill" style="left:65%; animation-delay:6s;"></div>
     <div class="pill" style="left:75%; animation-delay:7s;"></div>
     <div class="pill" style="left:85%; animation-delay:8s;"></div>
-    <div class="pill" style="left:90
+    <div class="pill" style="left:90%; animation-delay:1s;"></div>
 
+    <!-- More (smaller) pills -->
+    <div class="pill" style="left:10%; animation-delay:3s; transform:scale(.7);"></div>
+    <div class="pill" style="left:20%; animation-delay:6s; transform:scale(.8);"></div>
+    <div class="pill" style="left:30%; animation-delay:9s; transform:scale(.6);"></div>
+    <div class="pill" style="left:50%; animation-delay:4s; transform:scale(.9);"></div>
+    <div class="pill" style="left:70%; animation-delay:2s; transform:scale(.8);"></div>
+    <div class="pill" style="left:85%; animation-delay:5s; transform:scale(.7);"></div>
+</div>
+# dashboard.py (FINAL — Full app with floating pills background)
 import os
 from pathlib import Path
 import tempfile
@@ -1021,3 +1029,5 @@ For each hypothesis, provide:
         st.info("Please select two drugs to analyze")
 
 # End of file
+
+""", unsafe_allow_html=True)
