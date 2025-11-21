@@ -575,7 +575,7 @@ with tab6:
                         As a senior pharmacologist, analyze this drug combination:
 
                         **Drugs**: {drug_a} (Risk: {risk_a:.2f}) + {drug_b} (Risk: {risk_b:.2f})
-                        """
+                        
                         **Shared Side Effects**: {overlap_count}
                         **Key Overlaps**: {overlap_effects}
 
