@@ -98,7 +98,7 @@ reduce_motion_css = "animation: none !important; opacity: 0.95;" if reduce_motio
 
 # Choose gradient base depending on theme_choice; 'auto' will rely on prefers-color-scheme
 # We will still set a default gradient. The color contrasts and card backgrounds ensure text readability.
-css_html = f"""
+css_html ="""
 <style>
 /* Make Streamlit root containers transparent so background shows through */
 [data-testid="stAppViewContainer"],
