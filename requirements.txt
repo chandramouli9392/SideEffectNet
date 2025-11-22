@@ -8,3 +8,4 @@ dotenv
 reportlab
 matplotlib
 colorama
+streamlit-lottie
