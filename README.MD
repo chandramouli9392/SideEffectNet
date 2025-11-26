@@ -74,34 +74,62 @@ PDF report generation
 A clean, interactive interface for live network exploration & risk scoring.
 
 🗂️ Project Structure
+
 sideeffectnet/
+
 ├── data/
+
 │   ├── processed/
+
 │   │   ├── drug_risk_scores.csv
+
 │   │   └── side_effects_clean.csv
+
 │   ├── raw/
 │   │   ├── drug_names.tsv
+
 │   │   ├── meddra_all_se.tsv
+
 │   │   └── meddra_freq.tsv
+
 ├── media/
+
 │   └── sideeffectnetlogo.png
+
 ├── src/
+
 │   ├── analytics.py
+
 │   ├── dashboard.py
+
 │   ├── data_processing.py
+
 │   ├── graph_builder.py
+
 │   ├── plugin.py
+
 │   ├── risk_analyzer.py
+
 │   ├── utils.py
+
 │   ├── visualize_graph.py
+
 │   └── __pycache__/
+
 ├── drug_risk_scores.csv
+
 ├── main.py
+
 ├── README.md
+
 ├── requirements.txt
+
 ├── risk_analysis_report.pdf
+
 ├── risk_scores_graph.html
+
 └── sideeffectnet_graph.html
+
 
 🧑‍💻 Usage
 ▶️ Running the CLI
