@@ -5,7 +5,6 @@ from src.visualize_graph import visualize_graph, visualize_complete_graph
 from src.analytics import risk_scores  
 from src.risk_analyzer import calculate_and_add_risk_scores, export_risk_scores, visualize_risk_scores
 
-if __name__ == "__main__":
     # 1. Build the graph
     graph = build_side_effect_graph("data/processed/side_effects_clean.csv")
 
