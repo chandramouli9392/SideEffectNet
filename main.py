@@ -14,11 +14,11 @@ from src.risk_analyzer import (
 # Page config
 # -------------------------------
 st.set_page_config(
-    page_title="SideEffectNet",
+    page_title="DruSafe_AI",
     layout="wide"
 )
 
-st.title("💊 SideEffectNet – Drug Safety Intelligence System")
+st.title("💊 DruSafe_AI – Drug Safety Intelligence System")
 
 # -------------------------------
 # Cache heavy operations
@@ -74,7 +74,7 @@ with tabs[2]:
 
     if st.button("Generate Risk Graphs"):
         export_risk_scores(graph, output_csv="drug_risk_scores.csv")
-        visualize_graph(graph, output_path="sideeffectnet_graph.html", max_nodes=300)
+        visualize_graph(graph, output_path="DruSafeAI_graph.html", max_nodes=300)
         visualize_risk_scores(
             "drug_risk_scores.csv",
             output_html="risk_scores_graph.html"
